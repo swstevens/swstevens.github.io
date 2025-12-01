@@ -1,18 +1,21 @@
 <svelte:head>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 </svelte:head>
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Toolbar from './toolbar.svelte';
-	import DesktopShortcut from './desktop-shortcut.svelte'; // Updated import
+	import DesktopShortcut from './desktop-shortcut.svelte';
 	import WindowManager from './window-manager.svelte';
     import PortfolioPage from '../pages/portfolio_page.svelte';
+    import Blog from '../pages/blog.svelte';
+    import BlogPost from '../pages/blog-post.svelte';
     import Clippy from './clippy/clippy.svelte';
     import ClippyChat from './clippy/clippy-chat.svelte';
 	import Scanlines from './scanlines.svelte';
 	import { base } from '$app/paths';
-    import window from '$lib/window.svelte';    
+	import type { BlogPost as BlogPostType } from '$lib/data/blog';
 
     interface WindowState {
         id: string;
@@ -24,66 +27,148 @@
         width: number;
         height: number;
         zIndex: number;
-        iconUrl?: string; // Added icon URL property
+        iconUrl?: string;
+        position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+        component?: any;
+        props?: Record<string, any>;
     }
-    
+
+    interface WindowConfig {
+        title: string;
+        iconUrl: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        component: any;
+        position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+    }
+
+    // Mobile detection
+    let isMobile = $state(false);
+    let screenWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 0);
+
+    function updateScreenSize() {
+        if (typeof window !== 'undefined') {
+            screenWidth = window.innerWidth;
+            isMobile = screenWidth < 768;
+        }
+    }
+
     // Z-index management
     let nextZIndex = $state(1000);
-    
+    let selectedBlogPost = $state<BlogPostType | null>(null);
+
     function getNextZIndex(): number {
         return ++nextZIndex;
     }
-    
-    // Add mounted state
-    let isMounted = $state(false);
-    
-    // Central window state management
-    let windowStates = $state<Record<string, WindowState>>({
+
+    function handleOpenBlogPost(post: BlogPostType) {
+        selectedBlogPost = post;
+        // Update blog-post window title and open it
+        if (windowStates['blog-post']) {
+            windowStates['blog-post'].title = post.title;
+            windowStates['blog-post'].props = { post, onBack: handleBackToBlog };
+            openWindow('blog-post');
+            // Bring to front with a delay to ensure state updates and render first
+            setTimeout(() => {
+                bringToFront('blog-post');
+            }, 0);
+        }
+    }
+
+    function handleBackToBlog() {
+        closeWindow('blog-post');
+        selectedBlogPost = null;
+        // Bring blog window to front
+        bringToFront('blog');
+    }
+
+    // Window configuration dictionary
+    const windowConfigs: Record<string, WindowConfig> = {
         'portfolio': {
-            id: 'portfolio',
             title: 'Portfolio',
-            isOpen: false, // Changed to false initially
-            isMinimized: false,
+            iconUrl: `${base}/icons/computer-4.png`,
             x: 50,
             y: 50,
             width: 800,
             height: 600,
-            zIndex: 1005,
-            iconUrl: `${base}/icons/computer-4.png` // Add your icon paths
+            component: PortfolioPage,
+            position: 'top-left'
         },
-        // 'tools-window': {
-        //     id: 'tools-window',
-        //     title: 'Home',
-        //     isOpen: false,
-        //     isMinimized: false,
-        //     x: 80,
-        //     y: 80,
-        //     width: 800,
-        //     height: 600,
-        //     zIndex: 1001,
-        //     iconUrl: `${base}/icons/directory_closed_cool-3.png`
-        // },
+        'blog': {
+            title: 'Blog',
+            iconUrl: `${base}/icons/html2-5.png`,
+            x: 100,
+            y: 100,
+            width: 700,
+            height: 550,
+            component: Blog,
+            position: 'top-left'
+        },
+        'blog-post': {
+            title: 'Blog Post',
+            iconUrl: `${base}/icons/html2-5.png`,
+            x: 150,
+            y: 120,
+            width: 650,
+            height: 500,
+            component: BlogPost,
+            position: 'top-left'
+        },
         'clippy-chat': {
-            id: 'clippy-chat',
             title: '💬 Chat with Clippy',
-            isOpen: false,
-            isMinimized: false,
+            iconUrl: `${base}/icons/html2-5.png`,
             x: 200,
             y: 150,
             width: 400,
             height: 500,
-            zIndex: 1002,
-            iconUrl: `${base}/icons/html2-5.png`
+            component: ClippyChat,
+            position: 'top-left'
         }
-    });
+    };
+
+    // Initialize window states from config
+    function initializeWindowStates(): Record<string, WindowState> {
+        const states: Record<string, WindowState> = {};
+
+        for (const [id, config] of Object.entries(windowConfigs)) {
+            states[id] = {
+                id,
+                title: config.title,
+                isOpen: false,
+                isMinimized: false,
+                x: config.x,
+                y: config.y,
+                width: config.width,
+                height: config.height,
+                zIndex: 1000,
+                iconUrl: config.iconUrl,
+                position: config.position,
+                component: config.component
+            };
+        }
+
+        return states;
+    }
+
+    // Central window state management - initialized from config
+    let windowStates = $state<Record<string, WindowState>>(initializeWindowStates());
 
     // Mount handler to open portfolio after everything is ready
     onMount(() => {
+        // Initialize mobile detection
+        updateScreenSize();
+        window.addEventListener('resize', updateScreenSize);
+
         // Use a small delay to ensure all components are fully rendered
         setTimeout(() => {
-            isMounted = true;
             openWindow('portfolio');
         }, 50); // 50ms delay should be enough for rendering to complete
+
+        return () => {
+            window.removeEventListener('resize', updateScreenSize);
+        };
     });
 
     // Computed property for open windows (for toolbar)
@@ -140,65 +225,46 @@
         }
     }
 
-    // Button click handlers
-    function handleDebugPanelButton() {
-        const state = windowStates['portfolio'];
+    // Generic window handler
+    function handleWindowButton(id: string) {
+        const state = windowStates[id];
         if (!state.isOpen) {
-            openWindow('portfolio');
+            openWindow(id);
         } else if (state.isMinimized) {
-            toggleWindowMinimized('portfolio');
+            toggleWindowMinimized(id);
         } else {
-            bringToFront('portfolio');
-        }
-    }
-
-    function handleToolsButton() {
-        const state = windowStates['tools-window'];
-        if (!state.isOpen) {
-            openWindow('tools-window');
-        } else if (state.isMinimized) {
-            toggleWindowMinimized('tools-window');
-        } else {
-            bringToFront('tools-window');
+            bringToFront(id);
         }
     }
 
     // Clippy chat handler
     function handleClippyChatRequest() {
-        const state = windowStates['clippy-chat'];
-        if (!state.isOpen) {
-            openWindow('clippy-chat');
-        } else if (state.isMinimized) {
-            toggleWindowMinimized('clippy-chat');
-        } else {
-            bringToFront('clippy-chat');
-        }
+        handleWindowButton('clippy-chat');
     }
+
+    // Get list of window IDs to render (excluding clippy-chat and blog-post as they're special)
+    let renderableWindows = $derived(
+        Object.keys(windowStates).filter(id => !['clippy-chat', 'blog-post'].includes(id))
+    );
 </script>
 
-<Scanlines 
-  scanWidth={2} 
+<Scanlines
+  scanWidth={2}
   scanlineSpeed={30}
 />
 <div class="desktop">
-	<!-- Desktop Shortcuts -->
-	<DesktopShortcut
-		showButtonPosition="top-left"
-		showButtonText="Portfolio"
-		buttonIndex={0}
-		isVisible={!windowStates['portfolio'].isOpen}
-		imageUrl={windowStates['portfolio'].iconUrl}
-		onclick={handleDebugPanelButton}
-	/>
-
-	<!-- <DesktopShortcut
-		showButtonPosition="top-left"
-		showButtonText="Home"
-		buttonIndex={1}
-		isVisible={!windowStates['tools-window'].isOpen}
-		imageUrl={windowStates['tools-window'].iconUrl}
-		onclick={handleToolsButton}
-	/> -->
+	<!-- Desktop Shortcuts - Generated from window config -->
+	{#each renderableWindows as id, index}
+		{@const state = windowStates[id]}
+		<DesktopShortcut
+			showButtonPosition={state.position || 'top-left'}
+			showButtonText={state.title}
+			buttonIndex={index}
+			isVisible={!state.isOpen}
+			imageUrl={state.iconUrl}
+			onclick={() => handleWindowButton(id)}
+		/>
+	{/each}
 
 	<!-- window management -->
 	<div class="main-screen">
@@ -206,31 +272,31 @@
 		<div class="desktop-content"></div>
 	</div>
 
-	<!-- Window Managers -->
-	<WindowManager
-		windowState={windowStates['portfolio']}
-		onClose={() => closeWindow('portfolio')}
-		toggleMinimize={() => toggleWindowMinimized('portfolio')}
-		onPositionChange={(x, y) => updateWindowPosition('portfolio', x, y)}
-		onSizeChange={(w, h) => updateWindowSize('portfolio', w, h)}
-		onBringToFront={() => bringToFront('portfolio')}
-	>
-		<PortfolioPage />
-	</WindowManager>
+	<!-- Window Managers - Generated from window config -->
+	{#each renderableWindows as id}
+		{@const state = windowStates[id]}
+		{@const config = windowConfigs[id]}
+		<WindowManager
+			windowState={state}
+			{isMobile}
+			onClose={() => closeWindow(id)}
+			toggleMinimize={() => toggleWindowMinimized(id)}
+			onPositionChange={(x, y) => updateWindowPosition(id, x, y)}
+			onSizeChange={(w, h) => updateWindowSize(id, w, h)}
+			onBringToFront={() => bringToFront(id)}
+		>
+			{#if id === 'blog'}
+				<Blog onOpenPost={handleOpenBlogPost} />
+			{:else if id === 'portfolio'}
+				<PortfolioPage />
+			{/if}
+		</WindowManager>
+	{/each}
 
-	<!-- <WindowManager
-		windowState={windowStates['tools-window']}
-		onClose={() => closeWindow('tools-window')}
-		toggleMinimize={() => toggleWindowMinimized('tools-window')}
-		onPositionChange={(x, y) => updateWindowPosition('tools-window', x, y)}
-		onSizeChange={(w, h) => updateWindowSize('tools-window', w, h)}
-		onBringToFront={() => bringToFront('tools-window')}
-	>
-		<PortfolioPage />
-	</WindowManager> -->
-
+	<!-- Clippy-specific window -->
 	<WindowManager
 		windowState={windowStates['clippy-chat']}
+		{isMobile}
 		onClose={() => closeWindow('clippy-chat')}
 		toggleMinimize={() => toggleWindowMinimized('clippy-chat')}
 		onPositionChange={(x, y) => updateWindowPosition('clippy-chat', x, y)}
@@ -242,6 +308,22 @@
 
     <Clippy onRequestChatWindow={handleClippyChatRequest} />
 
+	<!-- Blog Post window - rendered last so it appears on top -->
+	{#if selectedBlogPost}
+		{@const blogPostState = windowStates['blog-post']}
+		<WindowManager
+			windowState={blogPostState}
+			{isMobile}
+			onClose={() => handleBackToBlog()}
+			toggleMinimize={() => toggleWindowMinimized('blog-post')}
+			onPositionChange={(x, y) => updateWindowPosition('blog-post', x, y)}
+			onSizeChange={(w, h) => updateWindowSize('blog-post', w, h)}
+			onBringToFront={() => bringToFront('blog-post')}
+		>
+			<BlogPost post={selectedBlogPost} onBack={handleBackToBlog} />
+		</WindowManager>
+	{/if}
+
 	<!-- Toolbar at bottom -->
 	<div class="toolbar">
 		<Toolbar openWindows={openWindows} onWindowToggle={toggleWindowMinimized} />
@@ -250,7 +332,7 @@
 
 <style>
 	.desktop {
-		background-color: #018281;
+		background-color: #438848;
 		height: 100vh;
 		display: flex;
 		flex-direction: column;
@@ -279,8 +361,10 @@
 		z-index: 1000000;
 	}
 
-	.minimized {
-		pointer-events: none;
-		opacity: 0;
+	/* Mobile styles */
+	@media (max-width: 767px) {
+		:global(.desktop-shortcut) {
+			display: none;
+		}
 	}
 </style>

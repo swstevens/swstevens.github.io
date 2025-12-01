@@ -1,16 +1,29 @@
 <script lang="ts">
+    import '../styles/theme.css';
+
     // Props interface
     interface Props {
       // Add any props you might need
     }
     let {}: Props = $props();
   </script>
-  
-  <div class="page experience-page">
-    <div class="page-content">
+
+  <div class="themed-page experience-page">
+    <div class="themed-page-content">
       <h2>Experience</h2>
-      
-      <div class="experience-item">
+
+      <div class="themed-card experience-item">
+        <h3>UNIVERSITY OF HAWAII AT MANOA</h3>
+        <p class="date">Honolulu, 08/24-Present</p>
+        <p>
+          Currently pursuing a Master's degree in Computer Science with a focus on advanced software engineering, artificial intelligence, and system design. Engaging in graduate-level coursework covering topics including machine learning, distributed systems, and advanced algorithms.
+        </p>
+        <p>
+          Developing expertise in modern AI architectures including agentic systems, retrieval-augmented generation (RAG), and context-aware generation techniques. Building practical applications that demonstrate advanced software engineering principles and autonomous agent coordination.
+        </p>
+      </div>
+  
+      <div class="themed-card experience-item">
         <h3>VINDICIA</h3>
         <p class="date">San Francisco, 03/22-12/23</p>
         <p>
@@ -24,7 +37,7 @@
         </p>
       </div>
   
-      <div class="experience-item">
+      <div class="themed-card experience-item">
         <h3>UO TECHDESK</h3>
         <p class="date">Eugene, 09/19-08/21</p>
         <p>
@@ -33,7 +46,7 @@
         </p>
       </div>
   
-      <div class="experience-item">
+      <div class="themed-card experience-item">
         <h3>UO ESPORTS</h3>
         <p class="date">Eugene, 09/19-06/21</p>
         <p>
@@ -44,57 +57,21 @@
   </div>
   
   <style>
-    .page {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      padding: 8px;
-    }
-  
-    .page-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-    }
-  
-    h2 {
-      margin: 0 0 16px 0;
-      color: #000;
-      font-family: 'Orbitron', 'MS Sans Serif', sans-serif;
-		letter-spacing: 1px;
-      font-size: 14px;
-      font-weight: bold;
-    }
-  
-    h3 {
-      margin: 0 0 8px 0;
-      color: #000;
-      font-family: 'Orbitron', 'MS Sans Serif', sans-serif;
-		letter-spacing: 1px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-  
-    p {
-      font-family: "Open Sans", sans-serif;
-      font-weight: 500;
-      margin: 0 0 8px 0;
-      font-size: 12px;
-      line-height: 1.4;
-    }
-  
+    /* Page-specific customizations */
     .experience-item {
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 2px solid #d0d0d0;
+      cursor: default;
     }
-  
-    .experience-item:last-child {
-      border-bottom: none;
+
+    .experience-item:hover {
+      cursor: default;
+      padding-left: 14px;
     }
-  
+
     .date {
       font-style: italic;
-      color: #606060;
+      color: var(--secondary);
+      font-size: 10px;
+      margin-bottom: 8px;
+      font-weight: 600;
     }
   </style>
